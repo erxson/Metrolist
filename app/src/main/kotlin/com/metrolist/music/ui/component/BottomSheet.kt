@@ -20,7 +20,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DragHandle
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -51,9 +60,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Bottom Sheet
- * Modified from [ViMusic](https://github.com/vfsfitvnm/ViMusic)
+ * Modern Bottom Sheet using Material 3 ModalBottomSheet
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheet(
     state: BottomSheetState,
@@ -63,71 +72,45 @@ fun BottomSheet(
     collapsedContent: @Composable BoxScope.() -> Unit,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(
-        modifier =
-        modifier
-            .fillMaxSize()
-            .offset {
-                val y =
-                    (state.expandedBound - state.value)
-                        .roundToPx()
-                        .coerceAtLeast(0)
-                IntOffset(x = 0, y = y)
-            }.pointerInput(state) {
-                val velocityTracker = VelocityTracker()
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { value ->
+            when (value) {
+                SheetValue.Hidden -> {
+                    onDismiss?.invoke()
+                    false
+                }
+                else -> true
+            }
+        }
+    )
 
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        velocityTracker.addPointerInputChange(change)
-                        state.dispatchRawDelta(dragAmount)
-                    },
-                    onDragCancel = {
-                        velocityTracker.resetTracking()
-                        state.snapTo(state.collapsedBound)
-                    },
-                    onDragEnd = {
-                        val velocity = -velocityTracker.calculateVelocity().y
-                        velocityTracker.resetTracking()
-                        state.performFling(velocity, onDismiss)
-                    },
+    if (state.isVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { onDismiss?.invoke() },
+            sheetState = sheetState,
+            dragHandle = { 
+                DragHandle(
+                    modifier = Modifier.padding(vertical = 8.dp)
                 )
-            }.clip(
-                RoundedCornerShape(
-                    topStart = if (!state.isExpanded) 16.dp else 0.dp,
-                    topEnd = if (!state.isExpanded) 16.dp else 0.dp,
-                ),
-            ).background(backgroundColor),
-    ) {
-        if (!state.isCollapsed && !state.isDismissed) {
-            BackHandler(onBack = state::collapseSoft)
-        }
-
-        if (!state.isCollapsed) {
-            BoxWithConstraints(
-                modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = ((state.progress - 0.25f) * 4).coerceIn(0f, 1f)
-                    },
-                content = content,
-            )
-        }
-
-        if (!state.isExpanded && (onDismiss == null || !state.isDismissed)) {
+            },
+            windowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
+            shape = RoundedCornerShape(
+                topStart = 28.dp,
+                topEnd = 28.dp
+            ),
+            containerColor = backgroundColor,
+            modifier = modifier
+        ) {
             Box(
-                modifier =
-                Modifier
-                    .graphicsLayer {
-                        alpha = 1f - (state.progress * 4).coerceAtMost(1f)
-                    }.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = state::expandSoft,
-                    ).fillMaxWidth()
-                    .height(state.collapsedBound),
-                content = collapsedContent,
-            )
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (state.isExpanded) {
+                    content()
+                } else {
+                    collapsedContent()
+                }
+            }
         }
     }
 }

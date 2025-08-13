@@ -1,11 +1,7 @@
 package com.metrolist.music.ui.component
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,9 +17,16 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DragHandle
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.ShapeDefaults
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +63,7 @@ class MenuState(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetMenu(
     modifier: Modifier = Modifier,
@@ -67,50 +71,50 @@ fun BottomSheetMenu(
     background: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(NavigationBarDefaults.Elevation),
 ) {
     val focusManager = LocalFocusManager.current
-
-    AnimatedVisibility(
-        visible = state.isVisible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-    ) {
-        BackHandler {
-            state.dismiss()
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { value ->
+            when (value) {
+                SheetValue.Hidden -> {
+                    state.dismiss()
+                    false
+                }
+                else -> true
+            }
         }
-
-        Spacer(
-            modifier =
-            Modifier
-                .pointerInput(Unit) {
-                    detectTapGestures {
-                        state.dismiss()
-                    }
-                }.background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
-                .fillMaxSize(),
-        )
-    }
-
-    AnimatedVisibility(
-        visible = state.isVisible,
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
-        modifier = modifier,
-    ) {
-        Column(
-            modifier =
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .padding(top = 48.dp)
-                .clip(ShapeDefaults.Large.top())
-                .background(background),
-        ) {
-            state.content(this)
-        }
-    }
+    )
 
     LaunchedEffect(state.isVisible) {
         if (state.isVisible) {
             focusManager.clearFocus()
+        }
+    }
+
+    if (state.isVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { state.dismiss() },
+            sheetState = sheetState,
+            dragHandle = { 
+                DragHandle(
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            },
+            windowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal),
+            shape = RoundedCornerShape(
+                topStart = 28.dp,
+                topEnd = 28.dp
+            ),
+            containerColor = background,
+            modifier = modifier
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                state.content(this)
+            }
         }
     }
 }
